@@ -16,6 +16,7 @@ source = source.split(kaiRequire).join("return null");
 const stubs = {
   "views/components/etc/window-env": path.join(__dirname, "stubs", "window-env.js"),
   "views/components/etc/icon": path.join(__dirname, "stubs", "icon.js"),
+  "views/env-parts/i18next": path.join(__dirname, "stubs", "i18next.js"),
   fs: path.join(__dirname, "stubs", "fs.js"),
   path: path.join(__dirname, "stubs", "path.js"),
   "@electron/remote": path.join(__dirname, "stubs", "electron.js"),
@@ -49,7 +50,7 @@ async function main() {
       {
         name: "poi-stubs",
         setup(build) {
-          build.onResolve({ filter: /^(fs|path|views\/components\/etc\/(window-env|icon)|@electron\/remote|electron)$/ }, (args) => {
+          build.onResolve({ filter: /^(fs|path|views\/(components\/etc\/(window-env|icon)|env-parts\/i18next)|@electron\/remote|electron)$/ }, (args) => {
             const stub = stubs[args.path];
             if (!stub) return null;
             return { path: stub };

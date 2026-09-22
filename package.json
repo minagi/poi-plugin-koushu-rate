@@ -5,6 +5,7 @@
   "main": "index.js",
   "files": [
     "index.js",
+    "i18n/**",
     "data/**",
     "README.md",
     "LICENSE"
@@ -15,6 +16,7 @@
     "title": "螺丝计算器",
     "description": "列出所有可改修装备，支持收藏，自动计算不确保期望与确保消耗对比",
     "icon": "fa/calculator",
+    "i18nDir": "./i18n",
     "priority": 50,
     "windowMode": true,
     "windowOptions": {
@@ -34,6 +36,8 @@
     "standalone": "node standalone/build.js",
     "build:standalone": "node standalone/build.js",
     "standalone:serve": "node standalone/build.js && node standalone/serve.js",
-    "test:standalone": "node standalone/smoke.js"
+    "test:standalone": "node standalone/smoke.js",
+    "check:i18n": "node standalone/i18n-check.js",
+    "test:i18n": "node standalone/i18n-smoke.js"
   }
 }

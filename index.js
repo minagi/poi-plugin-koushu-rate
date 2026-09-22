@@ -3,6 +3,23 @@ const fs = require("fs");
 const path = require("path");
 const { WindowEnv } = require("views/components/etc/window-env");
 const { SlotitemIcon, MaterialIcon } = require("views/components/etc/icon");
+const poiI18nextModule = require("views/env-parts/i18next");
+const poiI18next = poiI18nextModule.default || poiI18nextModule;
+
+const I18N_NAMESPACE = "poi-plugin-koushu-rate"
+function i18nKey(key) {
+  return String(key).replace(/\.\W/g, "").replace(/\.$/, "").replace(/:\s/g, "").replace(/:$/, "")
+}
+function t(key, options) {
+  return poiI18next.t(I18N_NAMESPACE + ":" + i18nKey(key), Object.assign({ defaultValue: key }, options || {}))
+}
+
+function displayEquipmentName(name) {
+  const value = String(name || "")
+  const fallback = /^装备 (\d+)$/.exec(value)
+  if (fallback) return t("装备 {{id}}", { id: fallback[1] })
+  return value === "未知素材" ? t(value) : value
+}
 
 function readPluginVersion() {
   try {
@@ -1152,7 +1169,8 @@ const CSS = `
 }
 .kr2-reco-label {
   display: inline-block;
-  width: 4.4em;
+  width: auto;
+  min-width: 4.4em;
   text-align: left;
   margin-right: 4px;
   color: #8b95a1;
@@ -1459,7 +1477,16 @@ const CSS = `
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+}
+.kr2-table td.kr2-dev-secretary {
+  width: 220px;
+  min-width: 140px;
+  max-width: 220px;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.4;
 }
 .kr2-dev-scroll::-webkit-scrollbar {
   width: 10px;
@@ -2194,7 +2221,7 @@ function recommendStarValues(row) {
 
 function secretaryText(secretaries, day) {
   if (!secretaries) return "-"
-  if (secretaries.any) return "任意"
+  if (secretaries.any) return t("任意")
   const list =
     day === ALL_DAYS_KEY
       ? WEEKDAY_KEYS.reduce((acc, d) => {
@@ -2576,9 +2603,9 @@ function buildRecommendation(normal, certain, p) {
   }
   const expected = normal / p
   const diff = certain - expected
-  if (diff > 0.005) return { expected, text: "不确保（省 " + diff.toFixed(2) + "）", tone: "save" }
-  if (diff < -0.005) return { expected, text: "确保（省 " + (-diff).toFixed(2) + "）", tone: "ensure" }
-  return { expected, text: "相同", tone: "same" }
+  if (diff > 0.005) return { expected, text: t("不确保（省 {{amount}}）", { amount: diff.toFixed(2) }), tone: "save" }
+  if (diff < -0.005) return { expected, text: t("确保（省 {{amount}}）", { amount: (-diff).toFixed(2) }), tone: "ensure" }
+  return { expected, text: t("相同"), tone: "same" }
 }
 
 function classifyRareMaterial(materials, kcDevData) {
@@ -2597,13 +2624,13 @@ function classifyRareMaterial(materials, kcDevData) {
 function MaterialDetail({ materials, onMaterialClick, inventoryByEquip, onInventoryClick, useItemCounts }) {
   const items = (materials || []).filter((item) => item && (item.item_name || item.item_material_key || item.item_equipment_id != null))
   if (items.length === 0) {
-    return React.createElement("div", { className: "kr2-material-empty" }, "无消耗装备")
+    return React.createElement("div", { className: "kr2-material-empty" }, t("无消耗装备"))
   }
   return React.createElement(
     "div",
     { className: "kr2-material-list" },
     items.map((item, idx) => {
-      const label = String(item.item_name || item.item_material_key || ("装备 " + item.item_equipment_id)) + " ×" + String(item.count || 1)
+      const label = String(item.item_name || item.item_material_key || t("装备 {{id}}", { id: item.item_equipment_id })) + " ×" + String(item.count || 1)
       const equipId = item.item_equipment_id != null ? String(item.item_equipment_id) : null
       const inventory = equipId ? (inventoryByEquip || {})[equipId] : null
       const stock = inventory && Number.isFinite(inventory.stock) ? inventory.stock : null
@@ -2614,14 +2641,14 @@ function MaterialDetail({ materials, onMaterialClick, inventoryByEquip, onInvent
       const props = { className: "kr2-material-item" + (equipId ? " kr2-material-btn" : "") }
       if (equipId) {
         props.onClick = () => onMaterialClick && onMaterialClick(item)
-        props.title = "查看该装备的开发配方"
+        props.title = t("查看该装备的开发配方")
       }
       const materialNode = React.createElement(equipId ? "button" : "span", props, label)
       const stockNode = equipId
         ? React.createElement(
             "button",
-            { className: "kr2-stock-btn", onClick: () => onInventoryClick && onInventoryClick(item), title: "按改修度查看持有数量" },
-            React.createElement("span", { className: "kr2-stock-label" }, "可用"),
+            { className: "kr2-stock-btn", onClick: () => onInventoryClick && onInventoryClick(item), title: t("按改修度查看持有数量") },
+            React.createElement("span", { className: "kr2-stock-label" }, t("可用")),
             " ",
             React.createElement("span", { className: "kr2-stock-qty" + stockClass }, stock == null ? "--" : String(stock))
           )
@@ -2629,7 +2656,7 @@ function MaterialDetail({ materials, onMaterialClick, inventoryByEquip, onInvent
           ? React.createElement(
               "span",
               { className: "kr2-stock-text" },
-              React.createElement("span", { className: "kr2-stock-label" }, "可用"),
+              React.createElement("span", { className: "kr2-stock-label" }, t("可用")),
               " ",
               React.createElement("span", { className: "kr2-stock-qty" + materialClass }, materialStock == null ? "--" : String(materialStock))
             )
@@ -2654,17 +2681,17 @@ function InventoryModal({ equipId, name, inventory, onClose }) {
         React.createElement(
           "div",
           null,
-          React.createElement("div", { className: "kr2-modal-title" }, "装备库存"),
+          React.createElement("div", { className: "kr2-modal-title" }, t("装备库存")),
           React.createElement(
             "div",
             { className: "kr2-modal-sub" },
-            name + (equipId != null ? " · 装备ID " + equipId : "") + (total > 0 ? " · 合计 " + total : "")
+            displayEquipmentName(name) + (equipId != null ? t(" · 装备ID {{id}}", { id: equipId }) : "") + (total > 0 ? t(" · 合计 {{count}}", { count: total }) : "")
           )
         ),
         React.createElement(
           "div",
           { className: "kr2-modal-actions" },
-          React.createElement("button", { className: "kr2-button", onClick: onClose }, "关闭")
+          React.createElement("button", { className: "kr2-button", onClick: onClose }, t("关闭"))
         )
       ),
       React.createElement(
@@ -2677,7 +2704,7 @@ function InventoryModal({ equipId, name, inventory, onClose }) {
               React.createElement(
                 "thead",
                 null,
-                React.createElement("tr", null, React.createElement("th", null, "改修度"), React.createElement("th", null, "数量"))
+                React.createElement("tr", null, React.createElement("th", null, t("改修度")), React.createElement("th", null, t("数量")))
               ),
               React.createElement(
                 "tbody",
@@ -2692,7 +2719,7 @@ function InventoryModal({ equipId, name, inventory, onClose }) {
                 )
               )
             )
-          : React.createElement("div", { className: "kr2-empty" }, "暂无库存数据，请先在游戏内加载装备数据")
+          : React.createElement("div", { className: "kr2-empty" }, t("暂无库存数据，请先在游戏内加载装备数据"))
       )
     )
   )
@@ -2796,7 +2823,7 @@ function planRowCosts(row, target, qty, inventoryByEquip, upgradeId) {
 function planCurrentDisplay(row, sel, inventoryByEquip) {
   if (Math.round(Number(sel.qty || 1)) === 1) return "★ " + String(planCurrentLevel(row, inventoryByEquip))
   const inv = (inventoryByEquip || {})[row.id]
-  return "库存 " + String(inv && Number.isFinite(inv.total) ? inv.total : 0)
+  return t("库存 {{count}}", { count: inv && Number.isFinite(inv.total) ? inv.total : 0 })
 }
 
 function planMaterialKey(m) {
@@ -2878,11 +2905,11 @@ class EvolutionButton extends React.Component {
   render() {
     const branches = this.props.branches || []
     if (branches.length === 0) {
-      return React.createElement("button", { type: "button", className: "kr2-plan-evo-btn", disabled: true }, "无进化")
+      return React.createElement("button", { type: "button", className: "kr2-plan-evo-btn", disabled: true }, t("无进化"))
     }
     const active = !!this.props.value
     const selected = branches.find((b) => String(b.upgrade_id) === String(this.props.value))
-    const label = "进化"
+    const label = t("进化")
     return React.createElement(
       "div",
       { className: "kr2-plan-evo-wrap" },
@@ -2897,11 +2924,11 @@ class EvolutionButton extends React.Component {
               React.createElement(
                 "div",
                 { className: "kr2-modal-head" },
-                React.createElement("div", { className: "kr2-modal-title" }, "选择进化分支"),
+                React.createElement("div", { className: "kr2-modal-title" }, t("选择进化分支")),
                 React.createElement(
                   "div",
                   { className: "kr2-modal-actions" },
-                  React.createElement("button", { className: "kr2-button", onClick: this.close }, "关闭")
+                  React.createElement("button", { className: "kr2-button", onClick: this.close }, t("关闭"))
                 )
               ),
               React.createElement(
@@ -2974,12 +3001,12 @@ function PlanningPage({ rows, inventoryByEquip, useItemCounts, selection, onTogg
   }) : materialList
   const stockClass = (stock, required) => stock == null ? "kr2-plan-stock-default" : stock < required ? "kr2-plan-stock-low" : "kr2-plan-stock-enough"
   const summaryItems = [
-    { materialId: 8, title: "螺丝", value: totals.screws },
-    { materialId: 7, title: "资材", value: totals.dev },
-    { materialId: 1, title: "油", value: totals.fuel },
-    { materialId: 2, title: "弹", value: totals.ammo },
-    { materialId: 3, title: "钢", value: totals.steel },
-    { materialId: 4, title: "铝", value: totals.bauxite },
+    { materialId: 8, title: t("螺丝"), value: totals.screws },
+    { materialId: 7, title: t("资材"), value: totals.dev },
+    { materialId: 1, title: t("油"), value: totals.fuel },
+    { materialId: 2, title: t("弹"), value: totals.ammo },
+    { materialId: 3, title: t("钢"), value: totals.steel },
+    { materialId: 4, title: t("铝"), value: totals.bauxite },
   ]
   return React.createElement(
     "div",
@@ -2990,15 +3017,15 @@ function PlanningPage({ rows, inventoryByEquip, useItemCounts, selection, onTogg
       React.createElement(
         "div",
         { className: "kr2-plan-bar-left" },
-        React.createElement("span", { className: "kr2-plan-total-label" }, "总资源消耗"),
-        React.createElement("span", { className: "kr2-status" }, "已选 " + selected.length + " / " + planRows.length + " 件收藏装备"),
-        React.createElement("label", { className: "kr2-plan-dev-toggle" }, React.createElement("input", { type: "checkbox", checked: !!includeDevExpected, onChange: onToggleIncludeDevExpected }), "统计素材开发的紫菜消耗期望")
+        React.createElement("span", { className: "kr2-plan-total-label" }, t("总资源消耗")),
+        React.createElement("span", { className: "kr2-status" }, t("已选 {{selected}} / {{total}} 件收藏装备", { selected: selected.length, total: planRows.length })),
+        React.createElement("label", { className: "kr2-plan-dev-toggle" }, React.createElement("input", { type: "checkbox", checked: !!includeDevExpected, onChange: onToggleIncludeDevExpected }), t("统计素材开发的紫菜消耗期望"))
       ),
       React.createElement(
         "div",
         { className: "kr2-plan-chips" },
-        React.createElement("button", { className: "kr2-plan-chip", onClick: () => onSelectAll(true) }, "全选"),
-        React.createElement("button", { className: "kr2-plan-chip", onClick: () => onSelectAll(false) }, "全不选")
+        React.createElement("button", { className: "kr2-plan-chip", onClick: () => onSelectAll(true) }, t("全选")),
+        React.createElement("button", { className: "kr2-plan-chip", onClick: () => onSelectAll(false) }, t("全不选"))
       )
     ),
     React.createElement(
@@ -3007,7 +3034,7 @@ function PlanningPage({ rows, inventoryByEquip, useItemCounts, selection, onTogg
       summaryItems.map((item) =>
         React.createElement(
           "div",
-          { key: item.title, className: "kr2-plan-sum-cell", title: item.title },
+          { key: item.materialId, className: "kr2-plan-sum-cell", title: item.title },
           React.createElement(MaterialIcon, { materialId: item.materialId, className: "kr2-plan-mat-icon", alt: item.title }),
           React.createElement("span", { className: "kr2-plan-sum-num" }, item.materialId === 8 ? planFormatScrews(item.value) : planFormatNumber(item.value))
         )
@@ -3022,21 +3049,21 @@ function PlanningPage({ rows, inventoryByEquip, useItemCounts, selection, onTogg
         React.createElement(
           "tr",
           null,
-          React.createElement("th", { style: { width: 36 } }, "选用"),
-          React.createElement("th", null, "装备"),
-          React.createElement("th", null, "当前"),
-          React.createElement("th", null, "目标"),
-          React.createElement("th", null, "目标数量"),
-          renderSortButton("开发资材", "dev", mainSort, toggleMainSort),
-          renderSortButton("螺丝", "screws", mainSort, toggleMainSort),
-          React.createElement("th", null, "素材")
+          React.createElement("th", { style: { width: 36 } }, t("选用")),
+          React.createElement("th", null, t("装备")),
+          React.createElement("th", null, t("当前")),
+          React.createElement("th", null, t("目标")),
+          React.createElement("th", null, t("目标数量")),
+          renderSortButton(t("开发资材"), "dev", mainSort, toggleMainSort),
+          renderSortButton(t("螺丝"), "screws", mainSort, toggleMainSort),
+          React.createElement("th", null, t("素材"))
         )
       ),
       React.createElement(
         "tbody",
         null,
         displayPlanRows.map((p) => {
-          const matText = p.costs.materials.map((m) => String(m.item.item_name || m.item.item_material_key || ("装备 " + m.item.item_equipment_id)) + " ×" + String(m.count)).join(" / ") || "无"
+          const matText = p.costs.materials.map((m) => String(m.item.item_name || m.item.item_material_key || t("装备 {{id}}", { id: m.item.item_equipment_id })) + " ×" + String(m.count)).join(" / ") || t("无")
           return React.createElement(
             "tr",
             { key: p.row.id },
@@ -3075,25 +3102,25 @@ function PlanningPage({ rows, inventoryByEquip, useItemCounts, selection, onTogg
     React.createElement(
       "div",
       { className: "kr2-plan-sec" },
-      React.createElement("h3", null, "素材需求汇总（按素材分别统计）"),
+      React.createElement("h3", null, t("素材需求汇总（按素材分别统计）")),
       React.createElement(
         "table",
         { className: "kr2-table kr2-plan-table" },
         React.createElement(
           "thead",
           null,
-          React.createElement("tr", null, React.createElement("th", { className: "kr2-plan-mat-th" }, "素材名称"), renderSortButton("需求", "required", matSort, toggleMatSort), renderSortButton("库存", "stock", matSort, toggleMatSort), renderSortButton("紫菜开发期望", "devExpected", matSort, toggleMatSort), React.createElement("th", { className: "kr2-plan-mat-th" }, "消耗于装备"))
+          React.createElement("tr", null, React.createElement("th", { className: "kr2-plan-mat-th" }, t("素材名称")), renderSortButton(t("需求"), "required", matSort, toggleMatSort), renderSortButton(t("库存"), "stock", matSort, toggleMatSort), renderSortButton(t("紫菜开发期望"), "devExpected", matSort, toggleMatSort), React.createElement("th", { className: "kr2-plan-mat-th" }, t("消耗于装备")))
         ),
         React.createElement(
           "tbody",
           null,
           materialList.length === 0
-            ? React.createElement("tr", null, React.createElement("td", { colSpan: 5 }, "暂无素材需求"))
+            ? React.createElement("tr", null, React.createElement("td", { colSpan: 5 }, t("暂无素材需求")))
             : displayMaterialList.map((m) =>
                 React.createElement(
                   "tr",
                   { key: m.name },
-                  React.createElement("td", { className: "kr2-plan-name" }, React.createElement("button", { className: "kr2-plan-mat-btn", onClick: () => onMaterialClick && onMaterialClick(m.item) }, m.name)),
+                  React.createElement("td", { className: "kr2-plan-name" }, React.createElement("button", { className: "kr2-plan-mat-btn", onClick: () => onMaterialClick && onMaterialClick(m.item) }, displayEquipmentName(m.name))),
                   React.createElement("td", null, String(m.required)),
                   React.createElement("td", { className: stockClass(m.stock, m.required) }, m.stock == null ? "--" : String(m.stock)),
                   React.createElement("td", null, planDevExpectedText(m.item, m.required, kcDevData)),
@@ -3307,7 +3334,7 @@ class StrongPage extends React.Component {
     const categoryHead = React.createElement(
       "th",
       { className: "kr2-strong-cat-th", ref: this.catRef, onClick: this.toggleCategoryOpen },
-      React.createElement("span", { className: "kr2-strong-cat-title" }, "装备分类"),
+      React.createElement("span", { className: "kr2-strong-cat-title" }, t("装备分类")),
       React.createElement("span", { className: "kr2-strong-cat-arrow" }, this.state.categoryOpen ? "▲" : "▼"),
       this.state.categoryOpen
         ? React.createElement(
@@ -3318,7 +3345,7 @@ class StrongPage extends React.Component {
                 "label",
                 { key: cat, className: "kr2-strong-cat-option" },
                 React.createElement("input", { type: "checkbox", checked: selectedCategories == null || selectedCategories.indexOf(cat) >= 0, onChange: () => this.toggleCategory(cat) }),
-                cat
+                t(cat)
               )
             )
           )
@@ -3333,22 +3360,22 @@ class StrongPage extends React.Component {
         React.createElement(
           "thead",
           null,
-          React.createElement("tr", null, categoryHead, React.createElement("th", null, "目标装备"), React.createElement("th", { className: "kr2-strong-stock-th" }, "库存装备"), React.createElement("th", null, "完成数"), React.createElement("th", null, "目标数"))
+          React.createElement("tr", null, categoryHead, React.createElement("th", null, t("目标装备")), React.createElement("th", { className: "kr2-strong-stock-th" }, t("库存装备")), React.createElement("th", null, t("完成数")), React.createElement("th", null, t("目标数")))
         ),
         React.createElement(
           "tbody",
           null,
           visibleGroups.length === 0
-            ? React.createElement("tr", null, React.createElement("td", { colSpan: 5 }, "无匹配分类"))
+            ? React.createElement("tr", null, React.createElement("td", { colSpan: 5 }, t("无匹配分类")))
             : visibleGroups.map((group) =>
                 React.createElement(
                   "tr",
                   { key: group.key, className: group.clear ? "kr2-strong-clear-row" : null },
-                  React.createElement("td", { className: "kr2-strong-cat" }, group.row.category || "-"),
+                  React.createElement("td", { className: "kr2-strong-cat" }, group.row.category ? t(group.row.category) : "-"),
                   React.createElement(
                     "td",
                     { className: "kr2-strong-equip" },
-                    group.row.name + (group.evolved ? "（进化）" : ""),
+                    group.row.name + (group.evolved ? t("（进化）") : ""),
                     !group.evolved && group.row.improveable !== false ? " " : null,
                     !group.evolved && group.row.improveable !== false ? React.createElement("span", { className: "kr2-strong-level" }, group.targetLevel) : null
                   ),
@@ -3384,7 +3411,7 @@ class LevelOneTable extends React.Component {
       return React.createElement(
         "div",
         { className: "kr2-empty", style: { padding: 16 } },
-        "该装备没有0★→5★的改修数据"
+        t("该装备没有0★→5★的改修数据")
       )
     }
     const normal = phase.consume_improvement_min
@@ -3409,13 +3436,13 @@ class LevelOneTable extends React.Component {
               ? React.createElement(
                   "div",
                   { className: "kr2-material-cell" },
-                  React.createElement(RateCell, { range: "素材详情", open: !!this.state.open[key], onToggle: () => this.toggle(key) }),
+                  React.createElement(RateCell, { range: t("素材详情"), open: !!this.state.open[key], onToggle: () => this.toggle(key) }),
                   rareWarning,
                   !!this.state.open[key]
                     ? React.createElement(MaterialDetail, { materials, onMaterialClick: this.props.onMaterialClick, inventoryByEquip: this.props.inventoryByEquip, useItemCounts: this.props.useItemCounts, onInventoryClick: this.props.onInventoryClick })
                     : null
                 )
-              : React.createElement("span", { className: "kr2-material-empty" }, "无")
+              : React.createElement("span", { className: "kr2-material-empty" }, t("无"))
           )
         )
       )
@@ -3430,11 +3457,11 @@ class LevelOneTable extends React.Component {
         React.createElement(
           "tr",
           null,
-          React.createElement("th", null, "改修度"),
-          React.createElement("th", null, "成功率"),
-          React.createElement("th", null, "不确保改修资材"),
-          React.createElement("th", null, "不确保期望"),
-          React.createElement("th", { className: "kr2-material-col" }, "确保推荐")
+          React.createElement("th", null, t("改修度")),
+          React.createElement("th", null, t("成功率")),
+          React.createElement("th", null, t("不确保改修资材")),
+          React.createElement("th", null, t("不确保期望")),
+          React.createElement("th", { className: "kr2-material-col" }, t("确保推荐"))
         )
       ),
       React.createElement("tbody", null, rows)
@@ -3462,7 +3489,7 @@ class LevelTwoTable extends React.Component {
       const materials = step ? step.materials || [] : []
       const hasMaterials = materials.some((item) => item && (item.item_name || item.item_material_key || item.item_equipment_id != null))
       const rareTier = rec.tone === "save" ? classifyRareMaterial(materials, kcDevData) : null
-      const rareWarning = rareTier === "rare" ? React.createElement("div", { className: "kr2-rare-warning" }, "稀有素材消耗注意！") : rareTier === "secondary" ? React.createElement("div", { className: "kr2-rare-warning-secondary" }, "次级稀有素材消耗注意！") : null
+      const rareWarning = rareTier === "rare" ? React.createElement("div", { className: "kr2-rare-warning" }, t("稀有素材消耗注意！")) : rareTier === "secondary" ? React.createElement("div", { className: "kr2-rare-warning-secondary" }, t("次级稀有素材消耗注意！")) : null
       const rangeNode = maxBlue
         ? React.createElement("span", null, "★9→", React.createElement("span", { className: "kr2-level-max-blue" }, "max"))
         : range
@@ -3514,15 +3541,15 @@ class LevelTwoTable extends React.Component {
         const branches = upgrades && upgrades.length ? upgrades : upgrades ? [upgrades] : []
         branches.forEach((branch, idx) => {
           const secretaryText = branch && branch.secretaries && branch.secretaries.length ? branch.secretaries.join("/") : ""
-          const targetName = branch ? (branch.targetName || ("装备 " + branch.upgrade_id)) : ""
-          const range = branch ? "进化→" : rate.range
+          const targetName = branch ? (branch.targetName || t("装备 {{id}}", { id: branch.upgrade_id })) : ""
+          const range = branch ? t("进化→") : t(rate.range)
           const key = branch ? "upgrade-" + String(branch.upgrade_id) + "-" + String(idx) : rate.range
           pushRateRow(branch, range, rate.label, key, rate.p, secretaryText, targetName)
         })
         return
       }
       const step = rate.source === "phase0" ? phase0 : phase1
-      pushRateRow(step, rate.range, rate.label, rate.range, rate.p, "", "", rate.range === "★9→max" && !upgrades)
+      pushRateRow(step, t(rate.range), rate.label, rate.range, rate.p, "", "", rate.range === "★9→max" && !upgrades)
     })
 
     return React.createElement(
@@ -3534,12 +3561,12 @@ class LevelTwoTable extends React.Component {
         React.createElement(
           "tr",
           null,
-          React.createElement("th", null, "改修度"),
-          React.createElement("th", null, "成功率"),
-          React.createElement("th", null, "不确保改修资材"),
-          React.createElement("th", null, "不确保期望"),
-          React.createElement("th", null, "确保改修资材"),
-          React.createElement("th", { className: "kr2-material-col" }, "确保推荐")
+          React.createElement("th", null, t("改修度")),
+          React.createElement("th", null, t("成功率")),
+          React.createElement("th", null, t("不确保改修资材")),
+          React.createElement("th", null, t("不确保期望")),
+          React.createElement("th", null, t("确保改修资材")),
+          React.createElement("th", { className: "kr2-material-col" }, t("确保推荐"))
         )
       ),
       React.createElement("tbody", null, rows)
@@ -3588,7 +3615,7 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
       { className: "kr2-row" + (row.improveable === false ? " kr2-row-not-improveable" : "") + (clear ? " kr2-row-clear" : ""), onClick: row.improveable === false ? null : onToggle },
       React.createElement(
         "button",
-        { className: "kr2-fav-btn" + (isFavorite ? " kr2-fav-active" : ""), onClick: (e) => { e.stopPropagation(); onFavoriteClick && onFavoriteClick(row.id) }, title: isFavorite ? "取消收藏" : "收藏" },
+        { className: "kr2-fav-btn" + (isFavorite ? " kr2-fav-active" : ""), onClick: (e) => { e.stopPropagation(); onFavoriteClick && onFavoriteClick(row.id) }, title: isFavorite ? t("取消收藏") : t("收藏") },
         isFavorite ? "★" : "☆"
       ),
       React.createElement(
@@ -3607,7 +3634,7 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
             : React.createElement(
                 "span",
                 { className: "kr2-name-completion kr2-name-completion-incomplete" },
-                "完成数（",
+                t("完成数（"),
                 React.createElement("span", { className: "kr2-name-completion-done" + (completion.completed > 0 ? " kr2-name-completion-done-active" : "") }, String(completion.completed)),
                 "/",
                 String(completion.target),
@@ -3619,7 +3646,7 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
       React.createElement(
         "span",
         { className: "kr2-meta" },
-        row.improveable === false ? "改修未开放" : (row.days && row.days.length >= 7 ? "每日可改修" : (row.days || []).map((d) => WEEKDAY_LABELS[d] || d).join("·"))
+        row.improveable === false ? t("改修未开放") : (row.days && row.days.length >= 7 ? t("每日可改修") : (row.days || []).map((d) => t(WEEKDAY_LABELS[d] || d)).join("·"))
       ),
       row.improveable === false
         ? React.createElement("div", { className: "kr2-reco kr2-reco-empty" }, "")
@@ -3629,13 +3656,13 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
             React.createElement(
               "span",
               { className: "kr2-reco-line" },
-              React.createElement("span", { className: "kr2-reco-label" }, "推荐星级"),
+              React.createElement("span", { className: "kr2-reco-label" }, t("推荐星级")),
               React.createElement("span", { className: "kr2-stars kr2-stars-priority" }, row.recommend && Number(row.recommend.priority) > 0 ? starText(row.recommend.priority) : "")
             ),
             React.createElement(
               "span",
               { className: "kr2-reco-line" },
-              React.createElement("span", { className: "kr2-reco-label" }, "活动强度"),
+              React.createElement("span", { className: "kr2-reco-label" }, t("活动强度")),
               React.createElement("span", { className: "kr2-stars kr2-stars-activity" }, row.recommend && Number(row.recommend.activity) > 0 ? starText(row.recommend.activity) : "")
             )
           )
@@ -3649,7 +3676,7 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
             { className: "kr2-level" },
             React.createElement(
               LevelSection,
-              { title: "0→5", defaultOpen: false, resourceText: "成功率100% · 改修资材 " + (row.phase0 ? row.phase0.consume_improvement_min : "--") },
+              { title: "0→5", defaultOpen: false, resourceText: t("成功率100% · 改修资材 {{count}}", { count: row.phase0 ? row.phase0.consume_improvement_min : "--" }) },
               React.createElement(LevelOneTable, { phase: row.phase0, onMaterialClick, inventoryByEquip, useItemCounts, onInventoryClick, kcDevData })
             )
           ),
@@ -3658,7 +3685,7 @@ function EquipmentRow({ row, expanded, onToggle, onMaterialClick, inventoryByEqu
             { className: "kr2-level" },
             React.createElement(
               LevelSection,
-              { title: "6→max", defaultOpen: true, resourceText: "成功率 95 / 90 / 82 / 77 / 67 / 62 %" },
+              { title: "6→max", defaultOpen: true, resourceText: t("成功率 95 / 90 / 82 / 77 / 67 / 62 %") },
               React.createElement(LevelTwoTable, { phase0: row.phase0, phase1: row.phase1, upgrades: row.upgrades, onMaterialClick, inventoryByEquip, useItemCounts, onInventoryClick, kcDevData })
             )
           )
@@ -3932,11 +3959,11 @@ function HelpModal({ onClose, updateNotes }) {
     React.createElement(
       "section",
       { key, className: "kr2-help-section" },
-      React.createElement("div", { className: "kr2-help-section-title" }, section.title),
+      React.createElement("div", { className: "kr2-help-section-title" }, section.title === PLUGIN_VERSION + "更新" ? t("{{version}}更新", { version: PLUGIN_VERSION }) : t(section.title)),
       React.createElement(
         "ul",
         { className: "kr2-help-list" },
-        section.items.map((text, itemIndex) => React.createElement("li", { key: itemIndex }, text))
+        section.items.map((text, itemIndex) => React.createElement("li", { key: itemIndex }, t(text)))
       )
     )
   return React.createElement(
@@ -3944,23 +3971,23 @@ function HelpModal({ onClose, updateNotes }) {
     { className: "kr2-modal-backdrop", onClick: onClose },
     React.createElement(
       "div",
-      { className: "kr2-modal kr2-help-modal", role: "dialog", "aria-modal": "true", "aria-label": "使用说明", onClick: (e) => e.stopPropagation() },
+      { className: "kr2-modal kr2-help-modal", role: "dialog", "aria-modal": "true", "aria-label": t("使用说明"), onClick: (e) => e.stopPropagation() },
       React.createElement(
         "div",
         { className: "kr2-modal-head" },
         React.createElement(
           "div",
           null,
-          React.createElement("div", { className: "kr2-modal-title" }, "使用说明"),
-          React.createElement("div", { className: "kr2-modal-sub" }, "螺丝计算器 v" + PLUGIN_VERSION)
+          React.createElement("div", { className: "kr2-modal-title" }, t("使用说明")),
+          React.createElement("div", { className: "kr2-modal-sub" }, t("螺丝计算器 v{{version}}", { version: PLUGIN_VERSION }))
         ),
-        React.createElement("button", { type: "button", className: "kr2-modal-close", onClick: onClose, title: "关闭", "aria-label": "关闭使用说明" }, "×")
+        React.createElement("button", { type: "button", className: "kr2-modal-close", onClick: onClose, title: t("关闭"), "aria-label": t("关闭使用说明") }, "×")
       ),
       React.createElement(
         "div",
         { className: "kr2-help-body" },
         updateSection ? renderSection(updateSection, "update") : null,
-        React.createElement("div", { className: "kr2-help-lead" }, "功能主页"),
+        React.createElement("div", { className: "kr2-help-lead" }, t("功能主页")),
         guideSections.map((section, index) => renderSection(section, index))
       )
     )
@@ -4287,6 +4314,7 @@ class KoushuRateApp extends React.Component {
     const inventoryByEquip = this.state.inventoryByEquip || {}
     const useItemCounts = this.state.useItemCounts || {}
     const favoritesOnly = !!this.state.favoritesOnly
+    const version = this.state.version === "未知" ? t("未知") : this.state.version
     const planSelection = this.state.planSelection || {}
     const favoriteRows = this.state.rows.filter((row) => !!this.state.favorites[row.id])
     const strongSummary = {}
@@ -4359,18 +4387,18 @@ class KoushuRateApp extends React.Component {
             React.createElement(
               "div",
               { className: "kr2-title-line" },
-              React.createElement("div", { className: "kr2-title" }, "螺丝计算器"),
-              React.createElement("button", { type: "button", className: "kr2-help-btn", onClick: this.openHelp }, "使用说明")
+              React.createElement("div", { className: "kr2-title" }, t("螺丝计算器")),
+              React.createElement("button", { type: "button", className: "kr2-help-btn", onClick: this.openHelp }, t("使用说明"))
             ),
             React.createElement(
               "div",
               { className: "kr2-title-note" },
-              "螺丝确保仅供参考，稀有素材消耗请酌情考虑～(∠・ω< )⌒★"
+              t("螺丝确保仅供参考，稀有素材消耗请酌情考虑～(∠・ω< )⌒★")
             ),
             React.createElement(
               "div",
               { className: "kr2-sub" },
-              "数据版本 " + this.state.version + (this.state.updatedAt ? " · " + this.state.updatedAt : ""),
+              t("数据版本 {{version}}", { version }) + (this.state.updatedAt ? " · " + this.state.updatedAt : ""),
               this.state.akashiUpdatedAt
                 ? React.createElement(
                     "span",
@@ -4379,7 +4407,7 @@ class KoushuRateApp extends React.Component {
                     React.createElement(
                       "a",
                       { className: "kr2-link", href: AKASHI_URL, onClick: (e) => { e.preventDefault(); openExternalUrl(AKASHI_URL) } },
-                      "明石数据"
+                      t("明石数据")
                     ),
                     " " + this.state.akashiUpdatedAt.slice(0, 10)
                   )
@@ -4388,20 +4416,20 @@ class KoushuRateApp extends React.Component {
             React.createElement(
               "div",
               { className: "kr2-reco-source" },
-              "推荐星级参考",
+              t("推荐星级参考"),
               React.createElement(
                 "a",
                 { className: "kr2-link", href: NGA_RECO_URL, onClick: (e) => { e.preventDefault(); openExternalUrl(NGA_RECO_URL) } },
-                "梦美的日常改修推荐"
+                t("梦美的日常改修推荐")
               )
             )
           ),
           React.createElement(
             "div",
             { className: "kr2-nav" },
-            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "list" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("list") }, "改修列表"),
-            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "plan" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("plan") }, "素材计算"),
-            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "strong" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("strong") }, "我变强了！")
+            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "list" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("list") }, t("改修列表")),
+            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "plan" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("plan") }, t("素材计算")),
+            React.createElement("button", { className: "kr2-nav-btn" + (this.state.activeTab === "strong" ? " kr2-nav-active" : ""), onClick: () => this.setActiveTab("strong") }, t("我变强了！"))
           ),
           React.createElement(
             "div",
@@ -4409,7 +4437,7 @@ class KoushuRateApp extends React.Component {
             React.createElement("input", {
               className: "kr2-search",
               value: this.state.query,
-              placeholder: "搜索装备名称...",
+              placeholder: t("搜索装备名称..."),
               onChange: (e) => this.setState({ query: e.target.value }),
             }),
             React.createElement(
@@ -4418,7 +4446,7 @@ class KoushuRateApp extends React.Component {
               React.createElement(
                 "button",
                 { type: "button", className: "kr2-cat", onClick: this.toggleCategory },
-                category === ALL_DAYS_KEY ? "全部分类" : category,
+                category === ALL_DAYS_KEY ? t("全部分类") : t(category),
                 React.createElement("span", { className: "kr2-cat-arrow" }, this.state.categoryOpen ? "▲" : "▼")
               ),
               this.state.categoryOpen
@@ -4428,22 +4456,22 @@ class KoushuRateApp extends React.Component {
                     React.createElement(
                       "div",
                       { className: "kr2-cat-option" + (category === ALL_DAYS_KEY ? " kr2-cat-option-active" : ""), onClick: () => this.selectCategory(ALL_DAYS_KEY) },
-                      "全部分类"
+                      t("全部分类")
                     ),
                     categories.map((c) =>
                       React.createElement(
                         "div",
                         { className: "kr2-cat-option" + (category === c ? " kr2-cat-option-active" : ""), key: c, onClick: () => this.selectCategory(c) },
-                        c
+                        t(c)
                       )
                     )
                   )
                 : null
             ),
-            React.createElement("button", { className: "kr2-button", onClick: () => this.checkAkashiUpdate(true) }, "更新数据"),
-            React.createElement("button", { className: "kr2-button", onClick: this.refresh }, "刷新"),
+            React.createElement("button", { className: "kr2-button", onClick: () => this.checkAkashiUpdate(true) }, t("更新数据")),
+            React.createElement("button", { className: "kr2-button", onClick: this.refresh }, t("刷新")),
             this.state.akashiStatus
-              ? React.createElement("span", { className: "kr2-status" }, this.state.akashiStatus)
+              ? React.createElement("span", { className: "kr2-status" }, t(this.state.akashiStatus))
               : null
           )
         ),
@@ -4454,19 +4482,19 @@ class KoushuRateApp extends React.Component {
           React.createElement(
             "button",
             { className: "kr2-day" + (day === ALL_DAYS_KEY ? " kr2-day-active" : ""), onClick: () => this.setState({ day: ALL_DAYS_KEY }) },
-            "全部"
+            t("全部")
           ),
           WEEKDAY_KEYS.map((key) =>
             React.createElement(
               "button",
               { className: "kr2-day" + (day === key ? " kr2-day-active" : ""), onClick: () => this.setState({ day: key }) },
-              WEEKDAY_LABELS[key]
+              t(WEEKDAY_LABELS[key])
             )
           ),
           React.createElement(
             "button",
-            { className: "kr2-day kr2-fav-toggle" + (favoritesOnly ? " kr2-fav-active" : ""), onClick: this.toggleFavoritesOnly, title: favoritesOnly ? "显示全部装备" : "只显示收藏装备" },
-            favoritesOnly ? "★收藏" : "☆收藏"
+            { className: "kr2-day kr2-fav-toggle" + (favoritesOnly ? " kr2-fav-active" : ""), onClick: this.toggleFavoritesOnly, title: favoritesOnly ? t("显示全部装备") : t("只显示收藏装备") },
+            favoritesOnly ? t("★收藏") : t("☆收藏")
           )
         )
       ),
@@ -4476,16 +4504,16 @@ class KoushuRateApp extends React.Component {
       React.createElement(
         "div",
         { className: "kr2-list-head", style: this.state.activeTab === "plan" || this.state.activeTab === "strong" ? { display: "none" } : null },
-        React.createElement("span", { className: "kr2-head-name" }, "装备"),
-        React.createElement("span", { className: "kr2-head-secretary" }, "秘书舰"),
-        React.createElement("span", { className: "kr2-head-meta" }, "可改修日期"),
+        React.createElement("span", { className: "kr2-head-name" }, t("装备")),
+        React.createElement("span", { className: "kr2-head-secretary" }, t("秘书舰")),
+        React.createElement("span", { className: "kr2-head-meta" }, t("可改修日期")),
         React.createElement(
           "span",
           { className: "kr2-head-reco" },
           React.createElement(
             "button",
-      { className: "kr2-sort-btn" + (this.state.starSort ? " kr2-sort-active" : ""), onClick: this.toggleStarSort, title: "按推荐星级排序（推荐星级优先，活动强度次之）" },
-            "推荐星级/素材消耗",
+      { className: "kr2-sort-btn" + (this.state.starSort ? " kr2-sort-active" : ""), onClick: this.toggleStarSort, title: t("按推荐星级排序（推荐星级优先，活动强度次之）") },
+            t("推荐星级/素材消耗"),
             React.createElement("span", { className: "kr2-sort-arrow" }, this.state.starSort === "desc" ? "↓" : this.state.starSort === "asc" ? "↑" : "↕")
           )
         )
@@ -4494,7 +4522,7 @@ class KoushuRateApp extends React.Component {
         "div",
         { className: "kr2-list", style: this.state.activeTab === "plan" || this.state.activeTab === "strong" ? { display: "none" } : null },
         rows.length === 0
-          ? React.createElement("div", { className: "kr2-empty" }, favoritesOnly ? "还没有收藏装备" : "没有匹配的装备")
+          ? React.createElement("div", { className: "kr2-empty" }, favoritesOnly ? t("还没有收藏装备") : t("没有匹配的装备"))
           : [
               React.createElement(
                 "div",
@@ -4503,9 +4531,7 @@ class KoushuRateApp extends React.Component {
                   "button",
                   { type: "button", className: "kr2-collapse-toggle", onClick: () => this.setState((prev) => ({ improveableOpen: !prev.improveableOpen })) },
                   this.state.improveableOpen ? "▼ " : "▶ ",
-                  "可改修装备 (",
-                  String(improveableRows.length),
-                  ")"
+                  t("可改修装备 ({{count}})", { count: improveableRows.length })
                 ),
                 this.state.improveableOpen ? improveableRows.map((row) => renderEquipmentRow(row)) : null
               ),
@@ -4517,9 +4543,7 @@ class KoushuRateApp extends React.Component {
                       "button",
                       { type: "button", className: "kr2-collapse-toggle", onClick: () => this.setState((prev) => ({ nonImproveableOpen: !prev.nonImproveableOpen })) },
                       this.state.nonImproveableOpen ? "▼ " : "▶ ",
-                      "不可改修装备 (",
-                      String(notImproveableRows.length),
-                      ")"
+                      t("不可改修装备 ({{count}})", { count: notImproveableRows.length })
                     ),
                     this.state.nonImproveableOpen ? notImproveableRows.map((row) => renderEquipmentRow(row)) : null
                   )
@@ -4566,26 +4590,26 @@ class KoushuRateApp extends React.Component {
                 React.createElement(
                   "div",
                   null,
-                  React.createElement("div", { className: "kr2-modal-title" }, "开发配方"),
+                  React.createElement("div", { className: "kr2-modal-title" }, t("开发配方")),
                   React.createElement(
                     "div",
                     { className: "kr2-modal-sub" },
-                    kcDevPopup.name + (kcDevPopup.equipId != null ? " · 装备ID " + kcDevPopup.equipId : "")
+                    displayEquipmentName(kcDevPopup.name) + (kcDevPopup.equipId != null ? t(" · 装备ID {{id}}", { id: kcDevPopup.equipId }) : "")
                   )
                 ),
                 React.createElement(
                   "div",
                   { className: "kr2-modal-actions" },
-                  React.createElement("button", { className: "kr2-button", onClick: this.openKcDevSite }, "打开网站"),
-                  React.createElement("button", { className: "kr2-button", onClick: this.closeKcDevPopup }, "关闭")
+                  React.createElement("button", { className: "kr2-button", onClick: this.openKcDevSite }, t("打开网站")),
+                  React.createElement("button", { className: "kr2-button", onClick: this.closeKcDevPopup }, t("关闭"))
                 )
               ),
               kcDevPopup.loading
-                ? React.createElement("div", { className: "kr2-empty" }, "正在获取开发配方数据...")
+                ? React.createElement("div", { className: "kr2-empty" }, t("正在获取开发配方数据..."))
                 : kcDevPopup.error
-                  ? React.createElement("pre", { className: "kr2-error" }, kcDevPopup.error)
+                  ? React.createElement("pre", { className: "kr2-error" }, t(kcDevPopup.error))
                   : kcDevFormulas.length === 0
-                    ? React.createElement("div", { className: "kr2-empty" }, "该装备暂无可用开发配方")
+                    ? React.createElement("div", { className: "kr2-empty" }, t("该装备暂无可用开发配方"))
                     : React.createElement(
                         "div",
                         { className: "kr2-dev-scroll" },
@@ -4598,20 +4622,20 @@ class KoushuRateApp extends React.Component {
                             React.createElement(
                               "tr",
                               null,
-                              React.createElement("th", null, "秘书舰"),
-                              React.createElement("th", null, "油"),
-                              React.createElement("th", null, "弹"),
-                              React.createElement("th", null, "钢"),
-                              React.createElement("th", null, "铝"),
-                              React.createElement("th", null, "总资源"),
-                              React.createElement("th", null, "池类型"),
+                              React.createElement("th", null, t("秘书舰")),
+                              React.createElement("th", null, t("油")),
+                              React.createElement("th", null, t("弹")),
+                              React.createElement("th", null, t("钢")),
+                              React.createElement("th", null, t("铝")),
+                              React.createElement("th", null, t("总资源")),
+                              React.createElement("th", null, t("池类型")),
                               React.createElement(
                                 "th",
                                 null,
                                 React.createElement(
                                   "button",
                                   { className: "kr2-sort-btn" + (kcDevSort.key === "rate" ? " kr2-sort-active" : ""), onClick: () => this.setKcDevSort("rate") },
-                                  "出货率",
+                                  t("出货率"),
                                   React.createElement("span", { className: "kr2-sort-arrow" }, kcDevSort.key === "rate" ? (kcDevSort.dir === "desc" ? "↓" : "↑") : "↕")
                                 )
                               ),
@@ -4621,7 +4645,7 @@ class KoushuRateApp extends React.Component {
                                 React.createElement(
                                   "button",
                                   { className: "kr2-sort-btn" + (kcDevSort.key === "failRate" ? " kr2-sort-active" : ""), onClick: () => this.setKcDevSort("failRate") },
-                                  "失败率",
+                                  t("失败率"),
                                   React.createElement("span", { className: "kr2-sort-arrow" }, kcDevSort.key === "failRate" ? (kcDevSort.dir === "desc" ? "↓" : "↑") : "↕")
                                 )
                               )
@@ -4634,13 +4658,17 @@ class KoushuRateApp extends React.Component {
                               React.createElement(
                                 "tr",
                                 { key: idx },
-                                React.createElement("td", null, f.poolName),
+                                React.createElement(
+                                  "td",
+                                  { className: "kr2-dev-secretary" },
+                                  t(f.poolName)
+                                ),
                                 React.createElement("td", null, String(f.formula[0])),
                                 React.createElement("td", null, String(f.formula[1])),
                                 React.createElement("td", null, String(f.formula[2])),
                                 React.createElement("td", null, String(f.formula[3])),
                                 React.createElement("td", null, String(f.total)),
-                                React.createElement("td", null, f.poolType),
+                                React.createElement("td", null, t(f.poolType)),
                                 React.createElement("td", null, f.rate.toFixed(2) + "%"),
                                 React.createElement("td", null, f.failRate.toFixed(2) + "%")
                               )
