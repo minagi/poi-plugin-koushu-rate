@@ -1,47 +1,98 @@
 # poi-plugin-koushu-rate
 
-## 解决的痛点
-在一个插件内解决改修查询、素材消耗、装备开发公式、库存查看等改修时的常见需求，不用再去各种地方翻找信息了，顺便依据数学期望做改修确保推荐；
+## このforkについて
 
-另外在保留基础自定义功能的前提下尽可能实现了自动计算，操作更加简洁。
+このリポジトリは、[laidiango/poi-plugin-koushu-rate](https://github.com/laidiango/poi-plugin-koushu-rate) の日本語対応forkです。
 
-## 特色功能
+upstreamの機能を維持したまま、poiの言語設定が日本語の場合にプラグインUIを日本語で表示できるようにしています。upstreamは現在も開発されているため、今後の更新を取り込みやすい薄い差分を維持する方針です。
 
-1.参考梦美改修推荐贴给常用装备附加了改修推荐度和活动强度评级，可以点击“推荐星级”进行排序，方便日常改修筛选。(目前只有进化链终点的装备有活动强度评级，改修推荐度对应梦美贴的优先级也有些bug，仅供参考);
+## このforkで追加した内容
 
-2.根据改修成功率自动计算螺丝消耗期望，并在每个改修等级推荐是否点确保(仅供参考，没有加入高级素材的成本考虑)；
+- poi標準i18nを利用した日本語表示
+- `ja-JP` / `zh-CN`辞書
+- 内部データの中国語キー・値を維持し、UI表示時のみ翻訳する構成
+- 開発レシピの秘書艦・開発プール名と資材テーブル表記の日本語化
+- 日本語化によって顕在化した一部レイアウトの調整
+  - おすすめ度／イベント有用度ラベル
+  - 開発レシピの秘書艦列の折り返し
+  - 開発レシピ表の横スクロール
+- i18nチェックとstandalone smoke test
 
-3.点击对应改修等级可展开查看消耗的素材情况以及对应的可用库存数量(默认为0改修度的素材数量)，点击素材可在插件内弹窗展开推荐开发公式，点击“可用”可在插件内弹窗展开拥有的素材详细情况(不同星级的数量)；默认折叠0-5星的改修情况，需要可点击展开；
+## 主な機能
 
-## 其他常规功能
+- 改修可能装備と、曜日・秘書艦による改修情報の一覧表示
+- 改修おすすめ度／イベント有用度の表示と並べ替え
+- 改修成功率から算出した改修資材の期待値と確実化の比較
+- 改修に必要な素材と所持数の確認
+- 装備の開発レシピ表示
+- お気に入り登録とお気に入り装備のみの表示
+- お気に入り装備を対象とした素材計算
+- 「強くなった！」画面での目標と進捗確認
+- 装備カテゴリによる絞り込み
+- 装備名のあいまい検索（簡体字中国語の入力にも対応）
+- 起動時の曜日に合わせた自動切り替え
 
-1.模糊搜索，搜索栏支持输入简体中文；
+おすすめ度、イベント有用度、確実化の提案は参考情報です。イベント有用度は主に装備更新系列の終点に設定され、おすすめ度と参考元の優先度には一部ずれがあります。また、確実化の比較では希少素材などの価値を考慮していない場合があります。
 
-2.收藏，点亮列表左侧的星星可收藏装备，点击插件表头的收藏按钮可隐藏其他未收藏装备；
+## インストール
 
-3.加入了按照装备大类进行筛选的功能；
+### この日本語forkを使用する場合
 
-4.点击进入插件时会识别日期并自动切换到对应的星期几；
+npmで公開されている `poi-plugin-koushu-rate` はupstream版であり、このforkの日本語対応は含まれていません。
 
-## npm 码
+#### 推奨：Git cloneとJunctionを使用する
 
-在 poi 的 设置 → 插件管理 → 从 npm 直接安装 中填入：
+Windowsでは、[このリポジトリ](https://github.com/minagi/poi-plugin-koushu-rate)を任意の場所へcloneし、poiのプラグインディレクトリからclone先へJunctionを作成する方法を推奨します。例としてclone先を `D:\Dev\poi-plugin-koushu-rate` とする場合は、poiを終了してから次のように実行します。
 
-poi-plugin-koushu-rate
+```powershell
+git clone https://github.com/minagi/poi-plugin-koushu-rate.git D:\Dev\poi-plugin-koushu-rate
+cmd /c mklink /J "%APPDATA%\poi\plugins\node_modules\poi-plugin-koushu-rate" "D:\Dev\poi-plugin-koushu-rate"
+```
 
+Junctionを作成するパスに同名のディレクトリやリンクが存在する場合、先に内容とリンク先を確認し、必要に応じて別の場所へ退避してください。既存のJunctionを外す場合は、clone先の実体を削除しないよう注意してください。
 
-## 本地安装
+この構成ではfork側の更新をGitで管理しやすく、poiからlinked pluginとして扱われるため、通常のプラグイン更新処理からは除外されます。ただし、poi本体の将来の仕様変更まで保証するものではありません。
 
-下载release包解压后，把 package/ 里的内容（index.js、package.json、data、README.md、LICENSE）放进poi插件目录：
+#### 簡易：Download ZIPまたは直接コピー
 
+GitHubの「Code」→「Download ZIP」からダウンロードするなどして、poiを終了した状態で次のファイルとディレクトリをプラグインディレクトリへ配置する方法もあります。
+
+```text
 %APPDATA%\poi\plugins\node_modules\poi-plugin-koushu-rate\
+```
 
-重启 poi 后，插件列表会出现“螺丝计算器”，点击后以弹出窗口打开。
+コピー対象は次のとおりです。
 
-## 数据来源
+- `index.js`
+- `package.json`
+- `data/`
+- `i18n/`
+- `README.md`
+- `LICENSE`
 
-[舰队Collection 装备开发计算器](https://xn--uesr8qr0rdwk.cn/kc-development-tools/)
+配置後にpoiを再起動すると、プラグイン一覧に「ネジ計算機」が表示されます。この手順では、poiのpluginsディレクトリで`npm install`を実行する必要はありません。
 
-[梦美的日常改修推荐](https://bbs.nga.cn/read.php?tid=45999901)
+このforkはupstreamと同じpackage名・versionを維持しています。直接コピーした場合は通常のインストール済みプラグインとして認識されるため、将来upstreamがnpmへ新しいversionを公開すると、upstream版への自動更新対象になる可能性があります。この方法を利用する場合は、デフォルトで有効なpoiの「設定」→「プラグイン関連」→「起動時にプラグインを更新する」の設定に注意してください。
 
-[明石改修工厂](https://akashi-list.me/)
+### upstream版を使用する場合
+
+upstream版は、poiの「設定」→「プラグイン管理」→「npmから」へ次のパッケージ名を入力してインストールできます。
+
+```text
+poi-plugin-koushu-rate
+```
+
+upstream版のソースと最新情報は、[元リポジトリ](https://github.com/laidiango/poi-plugin-koushu-rate)を参照してください。
+
+## データソース
+
+- [艦隊Collection 装備開発計算器](https://xn--uesr8qr0rdwk.cn/kc-development-tools/)
+- [夢美の日常改修おすすめ](https://bbs.nga.cn/read.php?tid=45999901)
+- [明石改修工廠](https://akashi-list.me/)
+
+## Credits / License
+
+- Original project: [laidiango/poi-plugin-koushu-rate](https://github.com/laidiango/poi-plugin-koushu-rate)
+- Original package author metadata: `xh255`
+- Japanese localization / fork maintenance: `Minagi Tohno`
+- License: [MIT License](LICENSE)

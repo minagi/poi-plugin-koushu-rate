@@ -11,6 +11,9 @@
     "LICENSE"
   ],
   "author": "xh255",
+  "contributors": [
+    "Minagi Tohno"
+  ],
   "license": "MIT",
   "poiPlugin": {
     "title": "螺丝计算器",
